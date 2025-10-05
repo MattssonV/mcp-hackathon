@@ -1,0 +1,12 @@
+[project]
+name = "hackathon-nice"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastmcp>=2.12.4",
+    "matplotlib>=3.10.6",
+    "mcp>=1.16.0",
+    "pandas>=2.3.3",
+]
