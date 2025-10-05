@@ -1,5 +1,4 @@
 import io
-import base64
 import pandas as pd
 import matplotlib.pyplot as plt
 from fastmcp import FastMCP
@@ -7,6 +6,8 @@ from fastmcp.utilities.types import Image  # Use this helper class for image ret
 import tempfile
 import json
 import ast
+import requests
+from bs4 import BeautifulSoup
 
 # 1. Initialize the FastMCP server
 mcp = FastMCP("PlottingServer 📊")
@@ -167,6 +168,90 @@ def generate_plot(
     except Exception as e:
         print(f"An error occurred during plotting: {e}")
         return Image(b"", format="png")
+
+
+@mcp.tool
+def extract_competition_table(
+    url: str,
+    table_index: int = 0,
+    output_format: str = "csv",
+) -> str:
+    """
+    Fetches an HTML table from the given URL and returns it as CSV or JSON.
+
+    :param url: The URL containing the competition results table.
+    :param table_index: Index of the table to extract if multiple tables are present.
+    :param output_format: Format of the returned data ('csv' or 'json').
+    :return: A string containing the table data in the requested format.
+    """
+
+    try:
+        response = requests.get(
+            url,
+            timeout=20,
+            headers={
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/127.0.0.0 Safari/537.36"
+                )
+            },
+        )
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        raise ValueError(f"Failed to fetch URL '{url}': {exc}") from exc
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    tables = soup.find_all("table")
+
+    if not tables:
+        raise ValueError("No tables found on the provided page.")
+
+    if table_index < 0 or table_index >= len(tables):
+        raise ValueError(
+            f"Table index {table_index} is out of range. Page contains {len(tables)} tables."
+        )
+
+    table = tables[table_index]
+
+    headers = [th.get_text(strip=True) for th in table.find_all("th")]
+    rows = []
+
+    for tr in table.find_all("tr"):
+        cells = tr.find_all("td")
+        if not cells:
+            continue
+        row = [cell.get_text(" ", strip=True) for cell in cells]
+        rows.append(row)
+
+    if not rows:
+        raise ValueError("Target table does not contain any data rows.")
+
+    column_count = len(headers) if headers else len(rows[0])
+    if not headers:
+        headers = [f"Column {idx + 1}" for idx in range(column_count)]
+    else:
+        # Ensure headers length matches row length by trimming or padding
+        if len(headers) < column_count:
+            headers.extend(
+                [f"Column {idx + 1}" for idx in range(len(headers), column_count)]
+            )
+        elif len(headers) > column_count:
+            headers = headers[:column_count]
+
+    dataframe = pd.DataFrame(rows, columns=headers)
+    dataframe = dataframe.dropna(how="all")
+
+    if dataframe.empty:
+        raise ValueError("Parsed table is empty after cleaning.")
+
+    output_format = output_format.lower()
+    if output_format == "csv":
+        return dataframe.to_csv(index=False)
+    if output_format == "json":
+        return dataframe.to_json(orient="records", force_ascii=False)
+
+    raise ValueError("output_format must be either 'csv' or 'json'.")
 
 
 # 5. Run the server
