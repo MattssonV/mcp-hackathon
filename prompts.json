@@ -1,0 +1,3 @@
+{
+    "prompt1": "Can you return the data from the file <full_filepath> located in the directory of plotTool. Make a line plot, one line per skater, showing their scores across all competitions, give the file a descriptive name"
+}
