@@ -52,7 +52,7 @@ def generate_plot(
     Also flattens columns containing stringified lists of dicts (e.g., Skaters column).
 
     :param csv_data: CSV data as a string.
-    :param plot_type: The type of plot to create ('line' or 'bar').
+    :param plot_type: The type of plot to create ('line', 'bar', or 'scatter').
     :param x_col: The column name for the X-axis.
     :param y_col: The column name for the Y-axis.
     :param group_col: Optional column name to group by for multiple lines.
@@ -136,6 +136,16 @@ def generate_plot(
             else:
                 plt.bar(data[x_col], data[y_col])
             plt.title("Bar Chart")
+            plt.xlabel(x_col)
+            plt.ylabel(y_col)
+        elif plot_type.lower() == "scatter":
+            if group_col and group_col in data.columns:
+                for key, grp in data.groupby(group_col):
+                    plt.scatter(grp[x_col], grp[y_col], label=str(key))
+                plt.legend(title=group_col)
+            else:
+                plt.scatter(data[x_col], data[y_col])
+            plt.title("Scatter Plot")
             plt.xlabel(x_col)
             plt.ylabel(y_col)
         else:
